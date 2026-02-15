@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oms-5k"
+version = "0.1.0"
+description = "Order Management System — CLI application following DDD principles"
+requires-python = ">=3.10"
+
+[project.scripts]
+ordercli = "src.order.api.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

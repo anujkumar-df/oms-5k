@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Node (legacy)
+node_modules/
+*.js.map
+
+# Local data store
+.oms-5k/
+orders.json
