@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.js.map
+
+# Local data store
+.oms-5k/
+orders.json

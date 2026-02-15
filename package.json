@@ -1,0 +1,20 @@
+{
+  "name": "oms-5k",
+  "version": "0.1.0",
+  "description": "Order Management System — CLI application",
+  "type": "module",
+  "bin": {
+    "ordercli": "./dist/order/api/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/order/api/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  }
+}
