@@ -2,7 +2,7 @@ name: "Cursor Agent: Implement Issues"
 
 on:
   issues:
-    types: [opened]
+    types: [opened, reopened]
   issue_comment:
     types: [created]
 
