@@ -95,7 +95,7 @@ jobs:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          agent -p "
+          agent --trust -p "
           You are working on a GitHub repository. An issue needs your attention.
 
           ## Issue #$ISSUE_NUMBER
