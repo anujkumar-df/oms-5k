@@ -90,23 +90,23 @@ jobs:
 
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
-      - name: Run Cursor Agent
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build agent prompt
         run: |
-          agent --trust -p "
-          You are working on a GitHub repository. An issue needs your attention.
+          cat > /tmp/agent-prompt.txt << 'PROMPT_END'
+          You are operating in a GitHub Actions runner.
 
-          ## Issue #$ISSUE_NUMBER
-          **Title:** $ISSUE_TITLE
-          **Labels:** $ISSUE_LABELS
+          The GitHub CLI is available as `gh` and authenticated via `GH_TOKEN`. Git is available.
+          You have write access to repository contents and can create pull requests and comment on issues.
+
+          ## Issue #ISSUE_NUMBER_PLACEHOLDER
+          **Title:** ISSUE_TITLE_PLACEHOLDER
+          **Labels:** ISSUE_LABELS_PLACEHOLDER
 
           **Description:**
-          $ISSUE_BODY
+          ISSUE_BODY_PLACEHOLDER
 
           ## Conversation thread
-          $ISSUE_COMMENTS
+          ISSUE_COMMENTS_PLACEHOLDER
 
           ## Instructions
 
@@ -116,25 +116,25 @@ jobs:
           This is an Order Management System (OMS) repository. Only work on issues that are directly related to OMS product development — for example: orders, inventory, customers, products, payments, shipping, returns, reporting, APIs, UI, database, configuration, testing, CI/CD, or documentation for the OMS.
 
           If the issue is NOT related to OMS product development (e.g. spam, off-topic requests, personal tasks, unrelated projects), do the following:
-          1. Post a polite comment on issue #$ISSUE_NUMBER explaining that this repository is for OMS development only and the issue appears to be out of scope.
-          2. Close the issue using: gh issue close $ISSUE_NUMBER --reason 'not planned'
+          1. Post a polite comment on issue #ISSUE_NUMBER_PLACEHOLDER explaining that this repository is for OMS development only and the issue appears to be out of scope.
+          2. Close the issue using: gh issue close ISSUE_NUMBER_PLACEHOLDER --reason 'not planned'
           3. Stop — do not implement anything.
 
           **If the issue is clear enough to implement:**
           1. Explore the repository structure to understand the codebase.
           2. Implement the changes described in the issue.
           3. Write clean, well-documented code following existing project conventions.
-          4. Commit your changes with a clear, descriptive commit message referencing issue #$ISSUE_NUMBER.
-          5. Push the branch '$BRANCH_NAME' to origin.
+          4. Commit your changes with a clear, descriptive commit message referencing issue #ISSUE_NUMBER_PLACEHOLDER.
+          5. Push the branch 'BRANCH_NAME_PLACEHOLDER' to origin.
           6. Create a pull request targeting 'main' that:
              - Has a clear title summarizing the change
-             - References and closes issue #$ISSUE_NUMBER
+             - References and closes issue #ISSUE_NUMBER_PLACEHOLDER
              - Describes what was implemented and why
-          7. Add a comment on issue #$ISSUE_NUMBER with a brief summary of what you did and a link to the PR.
+          7. Add a comment on issue #ISSUE_NUMBER_PLACEHOLDER with a brief summary of what you did and a link to the PR.
 
           **If the issue is ambiguous or you need clarification:**
           1. Do NOT guess or make assumptions about unclear requirements.
-          2. Post a comment on issue #$ISSUE_NUMBER asking specific, focused questions about what you need to know.
+          2. Post a comment on issue #ISSUE_NUMBER_PLACEHOLDER asking specific, focused questions about what you need to know.
           3. Stop after posting the comment — do not implement anything yet.
 
           **If this is a follow-up run (there are prior comments in the conversation):**
@@ -143,7 +143,26 @@ jobs:
           3. If a PR already exists for this branch, push new commits to update it instead of creating a new PR.
 
           Use the GitHub CLI (gh) for PR creation and issue comments.
-          "
+          PROMPT_END
+
+          # Substitute environment variables into the prompt file
+          sed -i "s|ISSUE_NUMBER_PLACEHOLDER|$ISSUE_NUMBER|g" /tmp/agent-prompt.txt
+          sed -i "s|BRANCH_NAME_PLACEHOLDER|$BRANCH_NAME|g" /tmp/agent-prompt.txt
+
+          # Use perl for multiline replacements (issue body/comments may span lines)
+          perl -i -pe "BEGIN{undef $/;} s|ISSUE_TITLE_PLACEHOLDER|$ENV{ISSUE_TITLE}|g" /tmp/agent-prompt.txt
+          perl -i -pe "BEGIN{undef $/;} s|ISSUE_LABELS_PLACEHOLDER|$ENV{ISSUE_LABELS}|g" /tmp/agent-prompt.txt
+          perl -i -pe "BEGIN{undef $/;} s|ISSUE_BODY_PLACEHOLDER|$ENV{ISSUE_BODY}|g" /tmp/agent-prompt.txt
+          perl -i -pe "BEGIN{undef $/;} s|ISSUE_COMMENTS_PLACEHOLDER|$ENV{ISSUE_COMMENTS}|g" /tmp/agent-prompt.txt
+
+      - name: Run Cursor Agent
+        timeout-minutes: 30
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROMPT=$(cat /tmp/agent-prompt.txt)
+          agent --force -p "$PROMPT" --output-format=text
 
       - name: Post failure comment
         if: failure()
