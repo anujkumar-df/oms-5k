@@ -162,7 +162,74 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PROMPT=$(cat /tmp/agent-prompt.txt)
-          agent --force -p "$PROMPT" --output-format=text
+
+          echo "🚀 Starting Cursor Agent..."
+
+          accumulated_text=""
+          tool_count=0
+          start_time=$(date +%s)
+
+          agent -p --force --output-format stream-json --stream-partial-output "$PROMPT" | \
+            while IFS= read -r line; do
+
+              type=$(echo "$line" | jq -r '.type // empty')
+              subtype=$(echo "$line" | jq -r '.subtype // empty')
+
+              case "$type" in
+                "system")
+                  if [ "$subtype" = "init" ]; then
+                    model=$(echo "$line" | jq -r '.model // "unknown"')
+                    echo "🤖 Using model: $model"
+                  fi
+                  ;;
+
+                "assistant")
+                  content=$(echo "$line" | jq -r '.message.content[0].text // empty')
+                  accumulated_text="$accumulated_text$content"
+                  printf "\r📝 Generating: %d chars" ${#accumulated_text}
+                  ;;
+
+                "tool_call")
+                  if [ "$subtype" = "started" ]; then
+                    tool_count=$((tool_count + 1))
+
+                    if echo "$line" | jq -e '.tool_call.writeToolCall' > /dev/null 2>&1; then
+                      path=$(echo "$line" | jq -r '.tool_call.writeToolCall.args.path // "unknown"')
+                      echo -e "\n🔧 Tool #$tool_count: Writing $path"
+                    elif echo "$line" | jq -e '.tool_call.readToolCall' > /dev/null 2>&1; then
+                      path=$(echo "$line" | jq -r '.tool_call.readToolCall.args.path // "unknown"')
+                      echo -e "\n📖 Tool #$tool_count: Reading $path"
+                    elif echo "$line" | jq -e '.tool_call.shellToolCall' > /dev/null 2>&1; then
+                      cmd=$(echo "$line" | jq -r '.tool_call.shellToolCall.args.command // "unknown"')
+                      echo -e "\n⚡ Tool #$tool_count: Running: $cmd"
+                    else
+                      echo -e "\n🔨 Tool #$tool_count: $(echo "$line" | jq -r 'keys[]' 2>/dev/null | head -1)"
+                    fi
+
+                  elif [ "$subtype" = "completed" ]; then
+                    if echo "$line" | jq -e '.tool_call.writeToolCall.result.success' > /dev/null 2>&1; then
+                      lines=$(echo "$line" | jq -r '.tool_call.writeToolCall.result.success.linesCreated // 0')
+                      size=$(echo "$line" | jq -r '.tool_call.writeToolCall.result.success.fileSize // 0')
+                      echo "   ✅ Created $lines lines ($size bytes)"
+                    elif echo "$line" | jq -e '.tool_call.readToolCall.result.success' > /dev/null 2>&1; then
+                      rlines=$(echo "$line" | jq -r '.tool_call.readToolCall.result.success.totalLines // 0')
+                      echo "   ✅ Read $rlines lines"
+                    elif echo "$line" | jq -e '.tool_call.shellToolCall.result' > /dev/null 2>&1; then
+                      exit_code=$(echo "$line" | jq -r '.tool_call.shellToolCall.result.exitCode // "?"')
+                      echo "   ✅ Exited with code $exit_code"
+                    fi
+                  fi
+                  ;;
+
+                "result")
+                  duration=$(echo "$line" | jq -r '.duration_ms // 0')
+                  end_time=$(date +%s)
+                  total_time=$((end_time - start_time))
+                  echo -e "\n\n🎯 Completed in ${duration}ms (${total_time}s total)"
+                  echo "📊 Final stats: $tool_count tools, ${#accumulated_text} chars generated"
+                  ;;
+              esac
+            done
 
       - name: Post failure comment
         if: failure()
