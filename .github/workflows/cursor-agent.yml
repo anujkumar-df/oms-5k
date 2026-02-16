@@ -113,10 +113,10 @@ jobs:
           Read the issue description AND the full conversation thread above carefully.
 
           **First, validate the issue is in scope:**
-          This is an Order Management System (OMS) repository. Only work on issues that are directly related to OMS product development — for example: orders, inventory, customers, products, payments, shipping, returns, reporting, APIs, UI, database, configuration, testing, CI/CD, or documentation for the OMS.
+          Read the CLAUDE.md file at the repository root. It defines the product, its bounded contexts, and what is in scope. Only work on issues that are directly related to the product described in CLAUDE.md — including its bounded contexts, APIs, database, UI, configuration, testing, CI/CD, infrastructure, or documentation.
 
-          If the issue is NOT related to OMS product development (e.g. spam, off-topic requests, personal tasks, unrelated projects), do the following:
-          1. Post a polite comment on issue #ISSUE_NUMBER_PLACEHOLDER explaining that this repository is for OMS development only and the issue appears to be out of scope.
+          If the issue is NOT related to this product's development (e.g. spam, off-topic requests, personal tasks, unrelated projects), do the following:
+          1. Post a polite comment on issue #ISSUE_NUMBER_PLACEHOLDER explaining that this repository is for this product's development only and the issue appears to be out of scope.
           2. Close the issue using: gh issue close ISSUE_NUMBER_PLACEHOLDER --reason 'not planned'
           3. Stop — do not implement anything.
 

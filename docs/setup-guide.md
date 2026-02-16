@@ -1,176 +1,214 @@
-# AI-Driven Development Setup Guide
+# Setup Guide
 
-A step-by-step guide for setting up a new project with fully automated, AI-driven development using Cursor Agent and GitHub Actions. This was originally built for an Order Management System (OMS), but the pattern applies to any domain — ERP, CRM, e-commerce, etc.
+A detailed guide for getting started with the AI Product Development Template.
 
-## What You'll End Up With
+## Overview
 
-- A GitHub repo where you **file issues** and an AI agent **implements them as PRs**
-- The agent asks **clarifying questions** when requirements are ambiguous, then continues once you reply
-- A **Cursor IDE skill** that lets you create well-structured issues by just describing what you need
-- **DDD architecture guidelines** baked into the project so the agent writes properly structured code
-- **Scope guardrails** so the agent only works on issues relevant to your product
+This template gives you a fully automated development workflow:
+
+1. **You fork the repo** and run an AI-powered setup wizard
+2. **The wizard configures everything** — architecture guidelines, issue skills, README
+3. **You file GitHub issues** describing what you want built
+4. **An AI agent implements them** and opens pull requests automatically
+
+The entire project follows Domain-Driven Design (DDD) principles, enforced through a generated `CLAUDE.md` that the agent reads before every task.
+
+---
 
 ## Prerequisites
 
-- A GitHub repository
+Before starting, make sure you have:
+
+- A GitHub account
+- [Cursor IDE](https://cursor.com) installed
 - A [Cursor API key](https://cursor.com) for the CI agent
-- GitHub CLI (`gh`) installed locally (for label creation and secret setup)
+- [GitHub CLI](https://cli.github.com) (`gh`) installed and authenticated
 
 ---
 
-## Step 1: Create the GitHub Actions Workflow
+## Step 1: Fork the Repository
 
-Create `.github/workflows/cursor-agent.yml` with a workflow that:
-
-**Triggers on:**
-- `issues: types: [opened]` — every new issue kicks off the agent
-- `issue_comment: types: [created]` — replies to the agent's clarification questions re-trigger it
-
-**Guard against infinite loops:**
-- Filter out bot comments in the `if` condition so the agent doesn't re-trigger itself
-- Only run on open issues, not on PR comments
-
-**Steps:**
-1. Checkout the repo
-2. Install Cursor CLI (`curl https://cursor.com/install -fsS | bash`)
-3. Configure git identity for the bot
-4. Read issue details and full conversation thread using `gh issue view`
-5. Create or switch to a working branch (`cursor/issue-{number}`)
-6. Run the Cursor agent with a prompt that includes:
-   - The issue title, body, labels, and conversation thread
-   - Instructions for three modes: **implement**, **ask for clarification**, or **continue from prior conversation**
-   - A **scope guard** — only work on issues related to your product domain
-7. Post a failure comment on the issue if the workflow fails
-
-**Secrets required:**
-- `CURSOR_API_KEY` — your Cursor API key, stored as a GitHub Actions secret
-
-**Permissions required:**
-- `contents: write` — to push branches
-- `pull-requests: write` — to create PRs
-- `issues: write` — to comment on issues
-
-### Setting up the secret
+Fork this template repository on GitHub. You can do this via the GitHub UI (click **Fork**) or with the CLI:
 
 ```bash
-gh secret set CURSOR_API_KEY --repo OWNER/REPO --body "your-api-key"
+gh repo fork TEMPLATE-OWNER/TEMPLATE-REPO --clone
 ```
 
 ---
 
-## Step 2: Create Issue Labels
+## Step 2: Set Up Your Cursor API Key
 
-Create labels so the agent (and your team) can categorize issues by type. At minimum:
+The GitHub Actions workflow uses the Cursor API to run the agent in CI. Store your API key as a repository secret:
 
 ```bash
-gh label create feature --description "New feature or enhancement" --color 0E8A16 --repo OWNER/REPO
-gh label create bug --description "Something is broken" --color D73A4A --repo OWNER/REPO
-gh label create deployment --description "Infrastructure, CI/CD, or release task" --color 1D76DB --repo OWNER/REPO
+gh secret set CURSOR_API_KEY --repo YOUR-ORG/YOUR-REPO --body "your-api-key"
 ```
 
-Adapt labels to your domain — e.g. an ERP system might add `finance`, `hr`, `procurement`.
+This key is only used by the GitHub Actions workflow — it never appears in code or logs.
 
 ---
 
-## Step 3: Create the CLAUDE.md (Project Guidelines)
+## Step 3: Run the Setup Wizard
 
-Create a `CLAUDE.md` at the repo root. This is the project-level context file that the Cursor Agent reads before doing any work. It should contain:
+Open your forked repository in Cursor and tell the AI:
 
-1. **Project overview** — what the system is, in one line
-2. **Architecture guidelines** — e.g. DDD, hexagonal, microservices, monolith
-3. **Domain structure** — your bounded contexts or modules
-4. **Tactical patterns** — which DDD patterns to use (entities, value objects, aggregates, domain events, repositories, etc.)
-5. **Key rules** — non-negotiable constraints (e.g. "domain layer has zero external dependencies")
-6. **Project structure** — how to organize code (by context, not by technical layer)
-7. **Tech stack** — if decided; otherwise mark as TBD
+> "Set up my project"
 
-### Adapting for Different Domains
+The wizard will guide you through four steps:
 
-For an **ERP system**, the bounded contexts might be:
-- Financial Accounting, Accounts Payable/Receivable
-- Human Resources, Payroll
-- Procurement, Vendor Management
-- Inventory, Warehouse Management
-- Sales, Customer Management
-- Manufacturing, Production Planning
+### 3a. Product Identity
 
-For a **CRM**, they might be:
-- Contacts, Leads, Opportunities
-- Sales Pipeline, Forecasting
-- Campaigns, Marketing Automation
-- Support Tickets, Knowledge Base
+The wizard asks for:
+- **Product name** — e.g. "InventoryHub", "PayrollPro"
+- **One-line description** — what the product does
+- **GitHub repo** — owner/repo for issue creation (e.g. "acme/inventory-hub")
 
-The architecture patterns (DDD, project structure, key rules) stay the same regardless of domain.
+### 3b. Domain Discovery
 
----
+You describe what your product does in plain language. The wizard uses this to **propose bounded contexts** — the major areas of your domain. For example:
 
-## Step 4: Create a Cursor Skill for Issue Creation
+- An **e-commerce platform** might get: Orders, Inventory, Customers, Products, Payments, Shipping, Returns
+- An **HR system** might get: Employees, Payroll, Leave, Recruitment, Performance, Benefits
+- A **project management tool** might get: Projects, Tasks, Teams, Time Tracking, Reporting
 
-Create `.cursor/skills/create-issue/SKILL.md` — a skill file that teaches the Cursor IDE agent how to create well-structured issues for your project.
+You can accept the suggestions, add more, remove some, or rename them. The wizard iterates until you're happy.
 
-The skill should define:
+### 3c. Tech Stack
 
-1. **Which GitHub repo** to create issues in (owner/repo)
-2. **Label mapping** — how to classify issues (feature, bug, deployment, etc.)
-3. **Issue body template** — a consistent format with Summary, Details, and Scope sections
-4. **Scope guard** — what's in scope for your product, so off-topic requests are rejected
-5. **Post-creation guidance** — tell the user the agent will pick it up automatically
+The wizard asks about your preferred tech stack with sensible defaults:
 
-### Usage
+| Choice | Default | Options |
+|--------|---------|---------|
+| Backend | Python + FastAPI | Python + Typer (CLI), TypeScript + NestJS, Go, Other |
+| Frontend | React | None (backend-only), Other |
+| Backend type | App server (HTTP API) | CLI tool |
 
-Once the skill is in place, you can just tell the IDE agent things like:
-- "Create an issue to add invoice generation"
-- "File a bug — the purchase order total doesn't include tax"
-- "We need to deploy the staging environment"
+### 3d. File Generation
 
-And it will create a properly structured, labeled issue in GitHub.
+The wizard generates three files based on your answers:
 
----
+1. **`CLAUDE.md`** — DDD architecture guidelines with your product name, bounded contexts, tech stack, and project structure
+2. **`.cursor/skills/create-issue/SKILL.md`** — a Cursor skill for creating well-structured issues with your repo reference and domain scope
+3. **`README.md`** — updated with your product name, description, and tech stack
 
-## Step 5: Create a README
+It also:
+- Removes the setup wizard skill (its job is done)
+- Creates GitHub labels (`feature`, `bug`, `deployment`) in your repo if they don't exist
 
-Write a `README.md` that explains to your team:
-
-1. **How to use the system** — file issues, wait for the agent, review PRs
-2. **The clarification flow** — if the agent needs more info, it comments on the issue; reply and it continues
-3. **How it works under the hood** — workflow triggers, branching, failure handling
-
-Keep it focused on usage, not setup (setup is a one-time thing done by the repo owner).
-
----
-
-## Step 6: Commit and Push
-
-Commit everything and push to `main`:
+After setup, your repo will look like this:
 
 ```
-.github/workflows/cursor-agent.yml   # CI workflow
-.cursor/skills/create-issue/SKILL.md # IDE skill for issue creation
-CLAUDE.md                             # Project guidelines for the agent
-README.md                             # Team usage docs
+.github/workflows/cursor-agent.yml   # CI workflow — auto-implements issues
+.cursor/skills/create-issue/SKILL.md  # Cursor skill for filing issues
+CLAUDE.md                              # DDD architecture guidelines (generated by wizard)
+README.md                              # Updated with your product info
+docs/setup-guide.md                    # This file
+src/                                   # Your code (created as issues are implemented)
 ```
 
-The push itself won't trigger the workflow — it only runs on issues and comments.
+---
+
+## Step 4: Create Issue Labels
+
+The wizard attempts to create labels automatically. If it can't (e.g. permissions), create them manually:
+
+```bash
+gh label create feature --description "New feature or enhancement" --color 0E8A16 --repo YOUR-ORG/YOUR-REPO
+gh label create bug --description "Something is broken" --color D73A4A --repo YOUR-ORG/YOUR-REPO
+gh label create deployment --description "Infrastructure, CI/CD, or release task" --color 1D76DB --repo YOUR-ORG/YOUR-REPO
+```
+
+Add domain-specific labels as needed (e.g. `finance`, `hr`, `frontend`).
 
 ---
 
-## Verification Checklist
+## Step 5: Verify Everything Works
 
-- [ ] `CURSOR_API_KEY` secret is set in GitHub repo settings
-- [ ] Labels exist in the repo (feature, bug, deployment)
-- [ ] Workflow file is on the default branch (`main`)
-- [ ] `CLAUDE.md` has your domain's bounded contexts and architecture guidelines
-- [ ] Cursor skill is in `.cursor/skills/` and references the correct repo
-- [ ] Create a test issue to verify the end-to-end flow
+Run through this checklist:
+
+- [ ] `CURSOR_API_KEY` secret is set in your GitHub repo settings
+- [ ] Labels exist in the repo (`feature`, `bug`, `deployment`)
+- [ ] `CLAUDE.md` contains your product name and bounded contexts
+- [ ] `.cursor/skills/create-issue/SKILL.md` references your repo
+- [ ] `.github/workflows/cursor-agent.yml` exists on the default branch
+
+### Test the end-to-end flow
+
+Create a test issue to verify everything works:
+
+```bash
+gh issue create --title "Add a health check endpoint" --body "## Summary
+Add a simple health check endpoint that returns the service status.
+
+## Details
+- Create a GET /health endpoint
+- Return { \"status\": \"ok\" } with a 200 response
+
+## Scope
+API layer" --label feature --repo YOUR-ORG/YOUR-REPO
+```
+
+Watch the GitHub Actions tab — the agent should pick up the issue and start working.
 
 ---
 
-## Customization Tips
+## How the Automation Works
 
-| What | How |
-|------|-----|
-| Add a label gate | Add `if: contains(github.event.issue.labels.*.name, 'your-label')` to the workflow job |
-| Restrict agent autonomy | Split the workflow: agent only modifies files, a separate step handles git/PR creation |
-| Add permissions config | Create a `.cursor/permissions.json` to limit what the agent can read/write/execute |
-| Support multiple repos | Each repo gets its own workflow + CLAUDE.md; the skill can be made personal (`~/.cursor/skills/`) to work across all projects |
-| Change the model | Add `--model <model-name>` to the `agent` command in the workflow |
+### Issue Flow
+
+```
+New issue opened (or comment added)
+         |
+         v
+GitHub Actions workflow triggers
+         |
+         v
+Cursor Agent reads:
+  - Issue title, body, labels
+  - Full conversation thread
+  - CLAUDE.md (architecture guidelines)
+         |
+         v
+Agent decides:
+  - In scope? If not, closes with comment
+  - Clear enough? If not, asks questions
+  - Ready to implement? Creates branch, codes, opens PR
+```
+
+### Branch Naming
+
+The agent creates branches named `cursor/issue-{number}`. If a branch already exists from a prior attempt, it reuses it and adds new commits.
+
+### Clarification Flow
+
+If requirements are ambiguous, the agent posts a comment asking specific questions. When you reply, the workflow re-triggers. The agent reads the full thread and continues with your clarifications.
+
+### Failure Handling
+
+If the agent fails (timeout, error, etc.), it posts a comment on the issue with a link to the failed workflow run so you can debug.
+
+---
+
+## Customization
+
+### Adding a label gate
+
+Only run the agent on issues with a specific label:
+
+Add this to the workflow job's `if` condition:
+
+```yaml
+contains(github.event.issue.labels.*.name, 'agent')
+```
+
+### Changing the scope guard
+
+Edit the agent prompt in `.github/workflows/cursor-agent.yml` to adjust what's considered "in scope" for your product.
+
+### Supporting multiple products
+
+Each product gets its own repo with its own `CLAUDE.md` and workflow. The Cursor skill can be made personal (`~/.cursor/skills/`) to work across all projects.
+
+### Adjusting the agent timeout
+
+The default timeout is 30 minutes. Change the `timeout-minutes` value in the workflow.
